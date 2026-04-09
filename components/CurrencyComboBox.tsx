@@ -26,7 +26,6 @@ import { Currencies, Currency } from "@/lib/currencies";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import SkeletonWrapper from "./SkeletonWrapper";
 import { UserSettings } from "@prisma/client";
-import { UpdateUserCurrency } from "@/app/wizard/_actions/userSettings";
 import { toast } from "sonner";
 
 
@@ -56,21 +55,36 @@ function CurrencyComboBox() {
     }, [userSettings.data])
 
     const mutation = useMutation({
-        mutationFn: UpdateUserCurrency,
+        mutationFn: async (currency: string) => {
+            const response = await fetch("/api/user-settings", {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ currency }),
+            });
+
+            if (!response.ok) {
+                const payload = await response.json().catch(() => null);
+                throw new Error(payload?.error || "Failed to update currency");
+            }
+
+            return response.json() as Promise<UserSettings>;
+        },
         onSuccess: (data: UserSettings) => {
             toast.success("currency updated successfully 🎉", {
-                id: "update-currency"
+                id: "update-currency",
             });
 
             setSelectedOption(
-                Currencies.find(c => c.value === data.currency) || null
-            )
+                Currencies.find((c) => c.value === data.currency) || null
+            );
         },
-        onError: (e) => {
+        onError: () => {
             toast.error("Something went wrong", {
-                id: "update-currency"
-            })
-        }
+                id: "update-currency",
+            });
+        },
     })
 
     const selectOption = React.useCallback(
